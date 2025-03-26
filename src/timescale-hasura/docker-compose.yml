@@ -1,0 +1,47 @@
+# be sure to use the hardened one in production, it's in the db.hardening repo in shellship org.
+version: '2.1'
+services:
+  timescaledb:
+    image: forktheweb/timescaledb:0.0.1
+    restart: always
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    command: -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_ADMIN_USER: ${DB_ADMIN:-admin}
+      POSTGRES_PASSWORD: ${DB_PASS:-postgres}
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    depends_on:
+      - timescaledb
+    environment:
+      - VIRTUAL_HOST=${VHOST:-test1.dev}
+      - PGADMIN_DEFAULT_EMAIL=${EMAIL:-test@disposableemail.org}
+      - PGADMIN_DEFAULT_PASSWORD=${DB_PASS:-postgres}
+      - LETSENCRYPT_EMAIL=${EMAL:-test@disposableemail.org}
+      - LETSENCRYPT_HOST=${LE_VHOST:-test1.dev}
+      - HSTS=off
+    expose:
+      - 80
+  graphql-engine:
+    image: hasura/graphql-engine:v1.3.3
+    ports:
+      - "8080:8080"
+    depends_on:
+      - timescaledb
+    restart: always
+    environment:
+      - HASURA_GRAPHQL_DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASS:-postgres}@timescaledb:5432/${DB_NAME:-postgres}
+      - HASURA_GRAPHQL_ENABLE_CONSOLE=true
+      - HASURA_GRAPHQL_DEV_MODE=true
+      - HASURA_GRAPHQL_ADMIN_SECRET=${ADMIN_SECRET:-test1.dev}
+      - VIRTUAL_HOST=${VHOST:-test1.dev}
+      - LETSENCRYPT_EMAIL=${EMAL:-test@disposableemail.org}
+      - LETSENCRYPT_HOST=${LE_VHOST:-test1.dev}
+      - HSTS=off
+    expose:
+      - 80
+volumes:
+  dbdata:

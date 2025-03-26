@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+
+  proxy:
+    container_name: ${CONTAINER_PREFIX:-7yns___}nginxproxy
+    privileged: true
+    image: jwilder/nginx-proxy:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - frontends
+    restart: always
+    volumes:
+      - /etc/nginx/vhost.d
+      - /usr/share/nginx/html
+      - ./certificates:/etc/nginx/certs
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+
+  letsencrypt:
+    container_name: ${CONTAINER_PREFIX:-7yns___}letsencrypt
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    networks:
+      - frontends
+    restart: always
+    volumes_from:
+      - proxy:rw
+    environment:
+      DEFAULT_EMAIL: ${DB_EMAIL:-default@localhost.dev}
+
+  postgres:
+    container_name: ${CONTAINER_PREFIX:-7yns___}postgres
+    image: postgres:15
+    networks:
+      - postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-username}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      PGDATA: /data/postgres
+    volumes:
+       - postgres:/data/postgres
+    ports:
+      - "5432:5432"
+
+  pgadmin:
+    container_name: ${CONTAINER_PREFIX:-7yns___}pgadmin
+    image: dpage/pgadmin4
+    networks:
+      - postgres
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${DB_EMAIL:-default@localhost.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${DB_PASSWORD:-password}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+       - pgadmin:/var/lib/pgadmin
+    ports:
+      - "${PGADMIN_PORT:-8081}:80"
+
+  graphql-engine:
+    container_name: ${CONTAINER_PREFIX:-7yns___}graphql
+    image: hasura/graphql-engine:v2.45.1-ce
+    networks:
+      - postgres
+    depends_on:
+      - postgres
+    restart: always
+    environment:
+      ## postgres database to store Hasura metadata
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://${DB_USER:-postgres}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-dbname}
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${DB_USER:-postgres}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-dbname}
+      ## enable the console served by server
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true" # set to "false" to disable console
+      ## disable in production
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ADMIN_SECRET: ${DB_PASSWORD:-password}
+    ports:
+      - "${HASURA_PORT:-8082}:8080"
+
+
+networks:
+  postgres:
+    driver: bridge
+  frontends:
+    driver: bridge
+
+volumes:
+    postgres:
+    pgadmin:

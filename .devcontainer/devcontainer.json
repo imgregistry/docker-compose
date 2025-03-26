@@ -1,0 +1,10 @@
+{
+    "name": "devcontainer",
+	"dockerComposeFile": [
+		"./docker-compose.yml"
+	],
+	"privileged": true,
+	"service": "devcontainer",
+    	"workspaceFolder": "/home/expert/workspace",
+	"containerUser": "expert"
+}

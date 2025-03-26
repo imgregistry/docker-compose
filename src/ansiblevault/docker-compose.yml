@@ -1,0 +1,18 @@
+version: '3.1'
+services:
+  vault:
+    image: hashicorp/vault:latest
+    container_name: ${CONTAINER_PREFIX:-7yns___}vault
+    ports:
+      - "8200:8200"
+      # Change this to the following if you have reverse proxy setup
+      #- "127.0.0.1:8200:8200"
+    volumes:
+      - ./config.hcl:/vault/config/config.hcl:ro
+      - ./vault_data:/vault/data
+    cap_add:
+      - IPC_LOCK
+    command: server
+    environment:
+      - TZ=America/NewYork
+    restart: always
